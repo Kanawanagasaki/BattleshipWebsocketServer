@@ -7,7 +7,7 @@ public class BoardPublic
     public PlayerPublic player;
     public bool isReady;
 
-    public string comment = @"numbers in board are: 0 is empty cell, 1 is mark (you shoot and miss), 2 is ship, e is hit (ship hit but not dead), 4 is shipwreck (sunken ship)";
+    public string comment = @"numbers in board are: 0 is empty cell, 1 is mark (you shoot and miss), 2 is ship, 3 is hit (ship hit but not dead), 4 is shipwreck (sunken ship)";
 
     public BoardPublic(Board b, bool hide)
     {

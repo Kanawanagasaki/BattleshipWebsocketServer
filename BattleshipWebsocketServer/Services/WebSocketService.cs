@@ -317,9 +317,9 @@ public class WebSocketService
                          "Communication occurs through the object { \"type\":string, \"method\":string|null, \"args\":object|string, \"comment\":string|undefined }.\n" +
                          "Type can be \"welcome\" (only first message from server when you just connect), \"request\", \"response\", \"notauthorised\" or \"error\".\n" +
                          "Method is a name of the method you want to execute, it might be null if error thrown.\n" +
-                         "Args is where data will be, it can be object or string" +
+                         "Args is where data will be, it can be object or string\n" +
                          "Comment may contain data of what to do next.\n" +
-                         "You can execute \"methods\" method to get all server methods and event (`ws.send({ \"type\":\"request\", \"method\":\"methods\" });`)\n" +
+                         "You can execute \"methods\" method to get all server methods and event (`ws.send(JSON.stringify({ \"type\":\"request\", \"method\":\"methods\" }));`)\n" +
                          "Right now we are waiting for you to execute login method, example: { \"type\":\"request\", \"method\":\"login\", \"args\": { \"nickname\":\"Player\" } }\n";
         await Send(ws, new(WsMessage.MessageType.Welcome, null, JToken.FromObject(welcome)));
     }

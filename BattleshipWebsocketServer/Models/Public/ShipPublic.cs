@@ -6,7 +6,7 @@ public class ShipPublic
     public int y;
     public int size;
     public bool isVertical;
-    public bool IsDead;
+    public bool isDead;
 
     public ShipPublic(Ship ship)
     {
@@ -14,6 +14,6 @@ public class ShipPublic
         y = ship.Y;
         size = ship.Size;
         isVertical = ship.IsVertical;
-        IsDead = ship.IsDead;
+        isDead = ship.IsDead;
     }
 }
