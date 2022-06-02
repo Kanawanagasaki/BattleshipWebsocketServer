@@ -257,7 +257,7 @@ public class RoomsService
                 room.ToggleTurn();
 
             if (room.Owner != player)
-                await _webSocket!.Send(room.Owner.Ws, new(WsMessage.MessageType.Request, "game.onsalve", JToken.FromObject(new
+                await _webSocket!.Send(room.Owner.Ws, new(WsMessage.MessageType.Request, "game.onsalvo", JToken.FromObject(new
                 {
                     x = x,
                     y = y,
@@ -267,7 +267,7 @@ public class RoomsService
                 })));
 
             if (room.Opponent is not null && room.Opponent != player)
-                await _webSocket!.Send(room.Opponent.Ws, new(WsMessage.MessageType.Request, "game.onsalve", JToken.FromObject(new
+                await _webSocket!.Send(room.Opponent.Ws, new(WsMessage.MessageType.Request, "game.onsalvo", JToken.FromObject(new
                 {
                     x = x,
                     y = y,
@@ -277,7 +277,7 @@ public class RoomsService
                 })));
             foreach (var viewer in room.Viewers.ToArray())
                 if (viewer != player)
-                    await _webSocket!.Send(viewer.Ws, new(WsMessage.MessageType.Request, "game.onsalve", JToken.FromObject(new
+                    await _webSocket!.Send(viewer.Ws, new(WsMessage.MessageType.Request, "game.onsalvo", JToken.FromObject(new
                     {
                         x = x,
                         y = y,

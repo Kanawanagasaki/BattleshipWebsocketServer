@@ -9,7 +9,7 @@ namespace BattleshipWebsocketServer.Services;
 
 public class WebSocketService
 {
-    private static string[] _events = new[] { "room.oncreate", "room.onkick", "room.ondestroy", "room.onjoin", "room.onstatechange", "room.onleave", "game.onsalve" };
+    private static string[] _events = new[] { "room.oncreate", "room.onkick", "room.ondestroy", "room.onjoin", "room.onstatechange", "room.onleave", "game.onsalvo" };
 
     private Dictionary<string, Func<WebSocket, WsMessage, Task>> _requestMethods = new();
     private PlayersService _players;
