@@ -5,7 +5,7 @@ VisualStudioVersion = 17.1.32421.90
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "BattleshipWebsocketServer", "BattleshipWebsocketServer\BattleshipWebsocketServer.csproj", "{A4593641-3EA3-43BF-B7B1-AAC00C551742}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BattleshipWebsocketServer.Tests", "BattleshipWebsocketServer.Test\BattleshipWebsocketServer.Tests.csproj", "{EAB6ED3B-3D1B-47C4-9023-FFEF0234A9AB}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "BattleshipWebsocketServer.Test", "BattleshipWebsocketServer.Test\BattleshipWebsocketServer.Test.csproj", "{EAB6ED3B-3D1B-47C4-9023-FFEF0234A9AB}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
