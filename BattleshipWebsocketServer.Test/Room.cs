@@ -89,7 +89,7 @@ public class Room
         // Check event
         res = await Util.Receive(ws2);
         Assert.NotNull(res);
-        Assert.Equal(WsMessage.MessageType.Request, res?.Type);
+        Assert.Equal(WsMessage.MessageType.Event, res?.Type);
         Assert.Equal("room.oncreate", res?.Method);
         dynamic? eventArgs = res?.Args;
         Assert.NotNull(eventArgs);
