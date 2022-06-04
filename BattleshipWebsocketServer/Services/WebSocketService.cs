@@ -33,6 +33,7 @@ public class WebSocketService
         _requestMethods.Add("game.placeships", GamePlaceShips);
         _requestMethods.Add("game.resetships", GameResetShips);
         _requestMethods.Add("game.salvo", GameSalvo);
+        _requestMethods.Add("game.surrender", GameSurrender);
         _requestMethods.Add("logout", Logout);
     }
 
@@ -314,6 +315,16 @@ public class WebSocketService
                 }
             }
             else await Send(ws, message.Response(res.success, res.message));
+        });
+
+    /// <summary>
+    /// If player is owner or opponent and game in active state, player can surrender, game will change it state to end and game.ongameover event will send
+    /// </summary>
+    private async Task GameSurrender(WebSocket ws, WsMessage message)
+        => await CheckLogin(ws, message, async player =>
+        {
+            var res = await _rooms.Surrender(player);
+            await Send(ws, message.Response(res.success, res.message));
         });
 
     /// <summary>

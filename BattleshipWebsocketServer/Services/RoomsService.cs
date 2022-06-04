@@ -304,9 +304,32 @@ public class RoomsService
             return (false, "You should be in room in order to surrender");
         if (room.Owner != player && room.Opponent != player)
             return (false, "You cannot surrender in room where you not playing");
-        if (room.State != Room.States.Preparation)
-            return (false, "You can reset ships only when room in preparation state");
-        return (false, "Not implemented");
+        if (room.State != Room.States.Active)
+            return (false, "You can surrender only when room in active state");
+
+        var data = new
+        {
+            winner = room.Owner != player ? room.Owner : room.Opponent,
+            isOwnerWon = room.Owner != player,
+            owner = new BoardPublic(room.OwnerBoard, false),
+            opponent = room.OpponentBoard is null ? null : new BoardPublic(room.OpponentBoard, false)
+        };
+
+        await _webSocket!.Send(room.Owner.Ws, new(WsMessage.MessageType.Event, "game.ongameover", JToken.FromObject(data)));
+        if (room.Opponent is not null)
+            await _webSocket!.Send(room.Opponent.Ws, new(WsMessage.MessageType.Event, "game.ongameover", JToken.FromObject(data)));
+        foreach (var viewer in room.Viewers.ToArray())
+            await _webSocket!.Send(viewer.Ws, new(WsMessage.MessageType.Event, "game.ongameover", JToken.FromObject(data)));
+
+        room.End();
+
+        await _webSocket!.Send(room.Owner.Ws, new(WsMessage.MessageType.Event, "room.onstatechange", JToken.FromObject(new { room = new RoomPublic(room, room.Owner) })));
+        if (room.Opponent is not null)
+            await _webSocket!.Send(room.Opponent.Ws, new(WsMessage.MessageType.Event, "room.onstatechange", JToken.FromObject(new { room = new RoomPublic(room, room.Opponent) })));
+        foreach (var viewer in room.Viewers.ToArray())
+            await _webSocket!.Send(viewer.Ws, new(WsMessage.MessageType.Event, "room.onstatechange", JToken.FromObject(new { room = new RoomPublic(room, viewer) })));
+
+        return (true, "");
     }
 
     public Room? GetJoinedRoom(Player player)
