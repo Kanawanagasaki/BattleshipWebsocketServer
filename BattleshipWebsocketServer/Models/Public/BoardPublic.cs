@@ -23,7 +23,9 @@ public class BoardPublic
             }
         }
 
-        ships = b.Ships.Select(s => new ShipPublic(s)).ToArray();
+        if(hide)
+            ships = b.Ships.Where(s => s.IsDead).Select(s => new ShipPublic(s)).ToArray();
+        else ships = b.Ships.Select(s => new ShipPublic(s)).ToArray();
 
         player = new(b.Player);
         isReady = b.IsReady;

@@ -62,14 +62,10 @@ public class WebSocketService
     }
 
     private async Task Methods(WebSocket ws, WsMessage message)
-    {
-        await Send(ws, message.Response(JToken.FromObject(new { methods = _requestMethods.Keys, events = _events })));
-    }
+        => await Send(ws, message.Response(new { methods = _requestMethods.Keys, events = _events }));
 
     private async Task Ping(WebSocket ws, WsMessage message)
-    {
-        await Send(ws, message.Response(JToken.FromObject("pong")));
-    }
+        => await Send(ws, message.Response("pong"));
 
     /// <summary>
     /// Login with a nickname, args: { "nickname":string }
@@ -78,21 +74,21 @@ public class WebSocketService
     {
         if (message.Args is null || message.Args.Type != JTokenType.Object)
         {
-            await Send(ws, message.Response(JObject.FromObject(new { success = false, message = "Type of \"args\" must be object" })));
+            await Send(ws, message.Response(false, "Type of \"args\" must be object"));
             return;
         }
         if (!(message.Args?.Value<JObject>()?.ContainsKey("nickname") ?? false))
         {
-            await Send(ws, message.Response(JObject.FromObject(new { success = false, message = "\"args\" must contain \"nickname\" of type string" })));
+            await Send(ws, message.Response(false, "\"args\" must contain \"nickname\" of type string"));
             return;
         }
 
         var res = _players.Register(ws, message.Args.Value<string>("nickname") ?? "");
         if (res.success && res.player is not null)
         {
-            await Send(ws, message.Response(JObject.FromObject(new { success = res.success, message = res.message, player = new PlayerPublic(res.player) }),
+            await Send(ws, message.Response(res.success, res.message, new { player = new PlayerPublic(res.player) },
                 "Nice, you loggined in, now you can execute one of the following methods:\n" +
-                "room.list - will response to you with all rooms, mb later it will be paged ;) args: none\n" +
+                "room.list - will response to you with paginated rooms, use { page:integer } in order to get next pages, 0 is the first page\n" +
                 "room.create - will create a new room and will put you in this room as owner, also will unsubscribe you from room update feed. args: none\n" +
                 "room.join - you will join specified room. args: { roomId:integer }\n" +
                 "logout - to logout"));
@@ -101,18 +97,30 @@ public class WebSocketService
                 _rooms.SubscribeToUpdates(res.player);
         }
         else
-        {
-            await Send(ws, message.Response(JObject.FromObject(new { success = res.success, message = res.message })));
-        }
+            await Send(ws, message.Response(res.success, res.message));
     }
 
     /// <summary>
     /// Sends back list of available rooms, no args
     /// </summary>
     private async Task RoomList(WebSocket ws, WsMessage message)
-        => await CheckLogin(ws, message, async player
-            => await Send(ws, message.Response(JToken.FromObject(new { rooms = _rooms.Rooms.Select(r => new RoomPublic(r, player)) }),
-                "use \"room.join\" with { roomId:integer } args to join any room")));
+        => await CheckLogin(ws, message, async player =>
+        {
+            int page = 0;
+            if (message.Args is not null && message.Args.Type == JTokenType.Object)
+            {
+                var obj = message.Args.Value<JObject>();
+                if (obj!.ContainsKey("page"))
+                    int.TryParse(obj.Value<string>("page"), out page);
+            }
+
+            int skip = page * 20;
+            var rooms = _rooms.Rooms.Skip(skip).Select(r => new RoomPublic(r, player));
+            int totalPages = (int)Math.Ceiling(_rooms.Rooms.Count / 20d);
+
+            await Send(ws, message.Response(true, null, new { rooms = rooms, page = page, totalPages = totalPages },
+                "Use \"room.list\" with args { page:integer } to get rooms on specific page.\nUse \"room.join\" with { roomId:integer } args to join any room."));
+        });
 
     /// <summary>
     /// Checks if player is logged and if so tries create room
@@ -122,9 +130,9 @@ public class WebSocketService
         {
             var res = await _rooms.CreateRoom(player);
             if (res.success && res.room is not null)
-                await Send(ws, message.Response(JToken.FromObject(new { room = new RoomPublic(res.room, player) }),
+                await Send(ws, message.Response(res.success, res.message, new { room = new RoomPublic(res.room, player) },
                     "If you want to leave room use \"room.leave\" without args, it will also destroy this room."));
-            else await Send(ws, message.Response(JToken.FromObject(new { success = res.success, message = res.message })));
+            else await Send(ws, message.Response(res.success, res.message));
         });
 
     /// <summary>
@@ -135,37 +143,37 @@ public class WebSocketService
         {
             if (message.Args is null)
             {
-                await Send(ws, message.Response(JToken.FromObject(new { success = false, message = "\"args\" must not be null" })));
+                await Send(ws, message.Response(false, "\"args\" must not be null"));
                 return;
             }
             if (message.Args.Type != JTokenType.Object)
             {
-                await Send(ws, message.Response(JToken.FromObject(new { success = false, message = "\"args\" must be an object" })));
+                await Send(ws, message.Response(false, "\"args\" must be an object"));
                 return;
             }
             var args = message.Args.Value<JObject>();
             if (args is null || !args.ContainsKey("roomId") || !int.TryParse(args.Value<string>("roomId"), out int roomId))
             {
-                await Send(ws, message.Response(JToken.FromObject(new { success = false, message = "\"args\" must contain \"roomId\" of type integer" })));
+                await Send(ws, message.Response(false, "\"args\" must contain \"roomId\" of type integer"));
                 return;
             }
 
             var res = await _rooms.JoinRoom(player, roomId);
             if (res.success && res.room is not null)
             {
-                await Send(ws, message.Response(JToken.FromObject(new { success = res.success, message = res.message, room = new RoomPublic(res.room, player) }),
+                await Send(ws, message.Response(res.success, res.message, new { room = new RoomPublic(res.room, player) },
                     "Right now you`re a viewer, if you want challenge owner of this room execute \"room.challenge\" without args (if room`s state is idle) " +
                     "or \"room.leave\" without args to leave"));
                 Console.WriteLine($"{player.Nickname} has joined room ID#{res.room.Id} owned by {res.room.Owner.Nickname}");
             }
-            else await Send(ws, message.Response(JToken.FromObject(new { success = res.success, message = res.message })));
+            else await Send(ws, message.Response(res.success, res.message));
         });
 
     private async Task RoomLeave(WebSocket ws, WsMessage message)
         => await CheckLogin(ws, message, async player =>
         {
             var res = await _rooms.LeaveRoom(player);
-            await Send(ws, message.Response(JToken.FromObject(new { success = res.success, message = res.message }),
+            await Send(ws, message.Response(res.success, res.message, null,
                 res.success ? "You now subscribed back to rooms updates" : null));
         });
 
@@ -177,10 +185,10 @@ public class WebSocketService
         {
             var res = await _rooms.Challenge(player);
             if (res.success && res.room is not null)
-                await Send(ws, message.Response(JToken.FromObject(new { success = res.success, message = res.message, room = new RoomPublic(res.room, player) }),
+                await Send(ws, message.Response(res.success, res.message, new { room = new RoomPublic(res.room, player) },
                     $"Waiting from you to execute \"game.placeships\" method with {{ ships:Ship[] }} args where Ship is {{ x:integer, y:integer, size:integer, isVertical:boolean }}. " +
                     $"Amount of ships must be {Board.Sizes.Length} and their sizes are: {string.Join(", ", Board.Sizes)}"));
-            else await Send(ws, message.Response(JToken.FromObject(new { success = res.success, message = res.message })));
+            else await Send(ws, message.Response(res.success, res.message));
         });
 
     /// <summary>
@@ -191,12 +199,23 @@ public class WebSocketService
         {
             if (message.Args is null)
             {
-                await Send(ws, message.Response(JToken.FromObject(new { success = false, message = "\"args\" must not be null" })));
+                await Send(ws, message.Response(false, "\"args\" must not be null"));
                 return;
             }
             if (message.Args.Type != JTokenType.Object)
             {
-                await Send(ws, message.Response(JToken.FromObject(new { success = false, message = "\"args\" must be an object" })));
+                await Send(ws, message.Response(false, "\"args\" must be an object"));
+                return;
+            }
+            var args = message.Args.Value<JObject>();
+            if (!args?.ContainsKey("ships") ?? false)
+            {
+                await Send(ws, message.Response(false, "\"args\" must contain \"ships\" of type array of Ship"));
+                return;
+            }
+            if (args?.Value<JToken>("ships")?.Type != JTokenType.Array)
+            {
+                await Send(ws, message.Response(false, $"\"ships\" must be an array, \"{args?.Value<JToken>("ships")?.Type.ToString()?.ToLower()}\" received"));
                 return;
             }
 
@@ -209,16 +228,16 @@ public class WebSocketService
             catch (Exception e)
             {
                 Console.WriteLine(e);
-                await Send(ws, message.Response(JToken.FromObject(new { success = false, message = "Failed to parse ships" })));
+                await Send(ws, message.Response(false, "Failed to parse ships. Ships must be an array of { x:integer, y:integer, size:integer, isVertical:boolean }"));
                 return;
             }
 
             var res = await _rooms.PlaceShips(player, ships);
             if (res.success && res.room is not null)
-                await Send(ws, message.Response(JToken.FromObject(new { success = res.success, message = res.message, room = new RoomPublic(res.room, player) }),
+                await Send(ws, message.Response(res.success, res.message, new { room = new RoomPublic(res.room, player) },
                     "Now wait for room to notify you that it in active state. If player want to move ships then execute \"game.resetships\" method, it will make him not ready to play. " +
-                    "Use \"game.salvo\" with { x:integer, y:integer } to shoot."));
-            else await Send(ws, message.Response(JToken.FromObject(new { success = res.success, message = res.message })));
+                    "When both players is ready use \"game.salvo\" with { x:integer, y:integer } to shoot."));
+            else await Send(ws, message.Response(res.success, res.message));
         });
 
     /// <summary>
@@ -228,13 +247,11 @@ public class WebSocketService
         => await CheckLogin(ws, message, async player =>
         {
             var res = await _rooms.ResetShips(player);
-            if (res.success && res.room is not null)
-                await Send(ws, message.Response(JToken.FromObject(new { success = res.success, message = res.message, room = new RoomPublic(res.room, player) })));
-            else await Send(ws, message.Response(JToken.FromObject(new { success = res.success, message = res.message })));
+            await Send(ws, message.Response(res.success, res.message, res.room is null ? null : new { room = new RoomPublic(res.room, player) }));
         });
 
     /// <summary>
-    /// Trying to shot ships. args: { x:number, y:number }
+    /// Trying to shoot ships. args: { x:number, y:number }
     /// </summary>
     /// <param name="ws"></param>
     /// <param name="message"></param>
@@ -244,34 +261,59 @@ public class WebSocketService
         {
             if (message.Args is null)
             {
-                await Send(ws, message.Response(JToken.FromObject(new { success = false, message = "\"args\" must not be null" })));
+                await Send(ws, message.Response(false, "\"args\" must not be null"));
                 return;
             }
             if (message.Args.Type != JTokenType.Object)
             {
-                await Send(ws, message.Response(JToken.FromObject(new { success = false, message = "\"args\" must be an object with \"x\" and \"y\" with type of integers" })));
+                await Send(ws, message.Response(false, "\"args\" must be an object with \"x\" and \"y\" with type of integers"));
                 return;
             }
             var args = message.Args.Value<JObject>();
             if (args is null || !args.ContainsKey("x") || !args.ContainsKey("y") || !int.TryParse(args.Value<string>("x"), out int x) || !int.TryParse(args.Value<string>("y"), out int y))
             {
-                await Send(ws, message.Response(JToken.FromObject(new { success = false, message = "\"args\" must contain \"x\" and \"y\" of type integer" })));
+                await Send(ws, message.Response(false, "\"args\" must contain \"x\" and \"y\" of type integer"));
                 return;
             }
 
             var res = await _rooms.Salvo(player, x, y);
             if (res.success && res.room is not null)
-                await Send(ws, message.Response(JToken.FromObject(new
+            {
+                await Send(ws, message.Response(res.success, res.message, new
                 {
-                    success = res.success,
-                    message = res.message,
                     x = x,
                     y = y,
                     isHit = res.isHit,
-                    sunkenShip = res.sunkenShip,
+                    sunkenShip = res.sunkenShip is null ? null : new ShipPublic(res.sunkenShip),
                     room = new RoomPublic(res.room, player)
-                })));
-            else await Send(ws, message.Response(JToken.FromObject(new { success = res.success, message = res.message })));
+                }));
+
+                if (res.isGameOver)
+                {
+                    var data = new
+                    {
+                        winner = res.isOwnerWon ? res.room.Owner : res.room.Opponent,
+                        isOwnerWon = res.isOwnerWon,
+                        owner = new BoardPublic(res.room.OwnerBoard, false),
+                        opponent = res.room.OpponentBoard is null ? null : new BoardPublic(res.room.OpponentBoard, false)
+                    };
+
+                    await Send(res.room.Owner.Ws, new(WsMessage.MessageType.Event, "game.ongameover", JToken.FromObject(data)));
+                    if (res.room.Opponent is not null)
+                        await Send(res.room.Opponent.Ws, new(WsMessage.MessageType.Event, "game.ongameover", JToken.FromObject(data)));
+                    foreach (var viewer in res.room.Viewers.ToArray())
+                        await Send(viewer.Ws, new(WsMessage.MessageType.Event, "game.ongameover", JToken.FromObject(data)));
+
+                    res.room.End();
+
+                    await Send(res.room.Owner.Ws, new(WsMessage.MessageType.Event, "room.onstatechange", JToken.FromObject(new { room = new RoomPublic(res.room, res.room.Owner) })));
+                    if (res.room.Opponent is not null)
+                        await Send(res.room.Opponent.Ws, new(WsMessage.MessageType.Event, "room.onstatechange", JToken.FromObject(new { room = new RoomPublic(res.room, res.room.Opponent) })));
+                    foreach (var viewer in res.room.Viewers.ToArray())
+                        await Send(viewer.Ws, new(WsMessage.MessageType.Event, "room.onstatechange", JToken.FromObject(new { room = new RoomPublic(res.room, viewer) })));
+                }
+            }
+            else await Send(ws, message.Response(res.success, res.message));
         });
 
     /// <summary>
@@ -280,7 +322,7 @@ public class WebSocketService
     private async Task Logout(WebSocket ws, WsMessage message)
     {
         var res = await _players.Logout(ws);
-        await Send(ws, message.Response(JObject.FromObject(new { success = res.success, message = res.message })));
+        await Send(ws, message.Response(res.success, res.message));
     }
 
     private async Task CheckLogin(WebSocket ws, WsMessage message, Func<Player, Task> callback)
@@ -315,7 +357,7 @@ public class WebSocketService
     {
         string welcome = "Hello, this is the websocket endpoint for the Battleship game.\n" +
                          "Communication occurs through the object { \"type\":string, \"method\":string|null, \"args\":object|string, \"comment\":string|undefined }.\n" +
-                         "Type can be \"welcome\" (only first message from server when you just connect), \"request\", \"response\", \"notauthorised\" or \"error\".\n" +
+                         "Type can be \"welcome\" (only first message from server when you just connect), \"request\", \"event\", \"response\", \"notauthorised\" or \"error\".\n" +
                          "Method is a name of the method you want to execute, it might be null if error thrown.\n" +
                          "Args is where data will be, it can be object or string\n" +
                          "Comment may contain data of what to do next.\n" +

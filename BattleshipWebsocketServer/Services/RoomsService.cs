@@ -33,7 +33,7 @@ public class RoomsService
 
             foreach (var subscriber in _updateSubscribers)
                 if (subscriber != player && _webSocket is not null && subscriber is not null)
-                    tasks.Add(_webSocket.Send(subscriber.Ws, new(WsMessage.MessageType.Request, "room.oncreate", JToken.FromObject(new { room = new RoomPublic(room, subscriber) }))));
+                    tasks.Add(_webSocket.Send(subscriber.Ws, new(WsMessage.MessageType.Event, "room.oncreate", JToken.FromObject(new { room = new RoomPublic(room, subscriber) }))));
         }
 
         await Task.WhenAll(tasks);
@@ -54,12 +54,12 @@ public class RoomsService
             {
                 var opponent = room.Opponent;
                 tasks.Add(LeaveRoom(room.Opponent));
-                tasks.Add(_webSocket!.Send(opponent.Ws, new(WsMessage.MessageType.Request, "room.onkick", JToken.FromObject(new { roomId = room.Id }))));
+                tasks.Add(_webSocket!.Send(opponent.Ws, new(WsMessage.MessageType.Event, "room.onkick", JToken.FromObject(new { roomId = room.Id }))));
             }
             foreach (var viewer in room.Viewers.ToArray())
             {
                 tasks.Add(LeaveRoom(viewer));
-                tasks.Add(_webSocket!.Send(viewer.Ws, new(WsMessage.MessageType.Request, "room.onkick", JToken.FromObject(new { roomId = room.Id }))));
+                tasks.Add(_webSocket!.Send(viewer.Ws, new(WsMessage.MessageType.Event, "room.onkick", JToken.FromObject(new { roomId = room.Id }))));
             }
 
             _rooms.Remove(room);
@@ -69,7 +69,7 @@ public class RoomsService
             {
                 foreach (var subscriber in _updateSubscribers)
                     if (_webSocket is not null && subscriber.Ws is not null)
-                        tasks.Add(_webSocket.Send(subscriber.Ws, new(WsMessage.MessageType.Request, "room.ondestroy", JToken.FromObject(new { roomId = room.Id }))));
+                        tasks.Add(_webSocket.Send(subscriber.Ws, new(WsMessage.MessageType.Event, "room.ondestroy", JToken.FromObject(new { roomId = room.Id }))));
 
                 if (!_updateSubscribers.Contains(room.Owner))
                     _updateSubscribers.Add(room.Owner);
@@ -99,20 +99,20 @@ public class RoomsService
 
         room.Join(player);
 
-        await _webSocket!.Send(room.Owner.Ws, new WsMessage(WsMessage.MessageType.Request, "room.onjoin", JToken.FromObject(new
+        await _webSocket!.Send(room.Owner.Ws, new WsMessage(WsMessage.MessageType.Event, "room.onjoin", JToken.FromObject(new
         {
             room = new RoomPublic(room, room.Owner),
             player = new PlayerPublic(player)
         })));
         if (room.Opponent is not null && room.Opponent != player)
-            await _webSocket!.Send(room.Opponent.Ws, new WsMessage(WsMessage.MessageType.Request, "room.onjoin", JToken.FromObject(new
+            await _webSocket!.Send(room.Opponent.Ws, new WsMessage(WsMessage.MessageType.Event, "room.onjoin", JToken.FromObject(new
             {
                 room = new RoomPublic(room, room.Opponent),
                 player = new PlayerPublic(player)
             })));
         foreach (var viewer in room.Viewers.ToArray())
             if (viewer != player)
-                await _webSocket!.Send(viewer.Ws, new WsMessage(WsMessage.MessageType.Request, "room.onjoin", JToken.FromObject(new
+                await _webSocket!.Send(viewer.Ws, new WsMessage(WsMessage.MessageType.Event, "room.onjoin", JToken.FromObject(new
                 {
                     room = new RoomPublic(room, viewer),
                     player = new PlayerPublic(player)
@@ -135,17 +135,17 @@ public class RoomsService
 
             if (flag)
             {
-                await _webSocket!.Send(room.Owner.Ws, new(WsMessage.MessageType.Request, "room.onstatechange", JToken.FromObject(new { room = new RoomPublic(room, room.Owner) })));
+                await _webSocket!.Send(room.Owner.Ws, new(WsMessage.MessageType.Event, "room.onstatechange", JToken.FromObject(new { room = new RoomPublic(room, room.Owner) })));
                 foreach (var viewer in room.Viewers.ToArray())
-                    await _webSocket!.Send(viewer.Ws, new(WsMessage.MessageType.Request, "room.onstatechange", JToken.FromObject(new { room = new RoomPublic(room, viewer) })));
+                    await _webSocket!.Send(viewer.Ws, new(WsMessage.MessageType.Event, "room.onstatechange", JToken.FromObject(new { room = new RoomPublic(room, viewer) })));
             }
 
-            await _webSocket!.Send(room.Owner.Ws, new(WsMessage.MessageType.Request, "room.onleave", JToken.FromObject(new { player = new PlayerPublic(room.Owner) })));
+            await _webSocket!.Send(room.Owner.Ws, new(WsMessage.MessageType.Event, "room.onleave", JToken.FromObject(new { player = new PlayerPublic(player) })));
             if (room.Opponent is not null && room.Opponent != player)
-                await _webSocket!.Send(room.Opponent.Ws, new(WsMessage.MessageType.Request, "room.onleave", JToken.FromObject(new { player = new PlayerPublic(room.Opponent) })));
+                await _webSocket!.Send(room.Opponent.Ws, new(WsMessage.MessageType.Event, "room.onleave", JToken.FromObject(new { player = new PlayerPublic(player) })));
             foreach (var viewer in room.Viewers.ToArray())
                 if (viewer != player)
-                    await _webSocket!.Send(viewer.Ws, new(WsMessage.MessageType.Request, "room.onleave", JToken.FromObject(new { player = new PlayerPublic(viewer) })));
+                    await _webSocket!.Send(viewer.Ws, new(WsMessage.MessageType.Event, "room.onleave", JToken.FromObject(new { player = new PlayerPublic(player) })));
 
             lock (_updateSubscribers)
                 if (!_updateSubscribers.Contains(player))
@@ -159,14 +159,16 @@ public class RoomsService
         var room = GetJoinedRoom(player);
         if (room is null)
             return (false, "You didn't join any room", null);
-        if (room.State != Room.States.Idle)
+        if (room.State != Room.States.Idle && room.State != Room.States.End)
             return (false, "You cannot challenge owner of this room because he already playing", null);
+        if (room.Owner == player)
+            return (false, "You cannot challenge yourself", null);
 
         room.Challenge(player);
 
-        await _webSocket!.Send(room.Owner.Ws, new(WsMessage.MessageType.Request, "room.onstatechange", JToken.FromObject(new { room = new RoomPublic(room, room.Owner) })));
+        await _webSocket!.Send(room.Owner.Ws, new(WsMessage.MessageType.Event, "room.onstatechange", JToken.FromObject(new { room = new RoomPublic(room, room.Owner) })));
         foreach (var viewer in room.Viewers.ToArray())
-            await _webSocket!.Send(viewer.Ws, new(WsMessage.MessageType.Request, "room.onstatechange", JToken.FromObject(new { room = new RoomPublic(room, viewer) })));
+            await _webSocket!.Send(viewer.Ws, new(WsMessage.MessageType.Event, "room.onstatechange", JToken.FromObject(new { room = new RoomPublic(room, viewer) })));
 
         return (true, "", room);
     }
@@ -195,12 +197,12 @@ public class RoomsService
             room.Activate();
 
         if (room.Owner != player)
-            await _webSocket!.Send(room.Owner.Ws, new(WsMessage.MessageType.Request, "room.onstatechange", JToken.FromObject(new { room = new RoomPublic(room, room.Owner) })));
+            await _webSocket!.Send(room.Owner.Ws, new(WsMessage.MessageType.Event, "room.onstatechange", JToken.FromObject(new { room = new RoomPublic(room, room.Owner) })));
         if (room.Opponent is not null && room.Opponent != player)
-            await _webSocket!.Send(room.Opponent.Ws, new(WsMessage.MessageType.Request, "room.onstatechange", JToken.FromObject(new { room = new RoomPublic(room, room.Opponent) })));
+            await _webSocket!.Send(room.Opponent.Ws, new(WsMessage.MessageType.Event, "room.onstatechange", JToken.FromObject(new { room = new RoomPublic(room, room.Opponent) })));
         foreach (var viewer in room.Viewers.ToArray())
             if (viewer != player)
-                await _webSocket!.Send(viewer.Ws, new(WsMessage.MessageType.Request, "room.onstatechange", JToken.FromObject(new { room = new RoomPublic(room, viewer) })));
+                await _webSocket!.Send(viewer.Ws, new(WsMessage.MessageType.Event, "room.onstatechange", JToken.FromObject(new { room = new RoomPublic(room, viewer) })));
 
         return (true, "", room);
     }
@@ -222,42 +224,43 @@ public class RoomsService
         board.Reset();
 
         if (room.Owner != player)
-            await _webSocket!.Send(room.Owner.Ws, new(WsMessage.MessageType.Request, "room.onstatechange", JToken.FromObject(new { room = new RoomPublic(room, room.Owner) })));
+            await _webSocket!.Send(room.Owner.Ws, new(WsMessage.MessageType.Event, "room.onstatechange", JToken.FromObject(new { room = new RoomPublic(room, room.Owner) })));
         if (room.Opponent is not null && room.Opponent != player)
-            await _webSocket!.Send(room.Opponent.Ws, new(WsMessage.MessageType.Request, "room.onstatechange", JToken.FromObject(new { room = new RoomPublic(room, room.Opponent) })));
+            await _webSocket!.Send(room.Opponent.Ws, new(WsMessage.MessageType.Event, "room.onstatechange", JToken.FromObject(new { room = new RoomPublic(room, room.Opponent) })));
         foreach (var viewer in room.Viewers.ToArray())
             if (viewer != player)
-                await _webSocket!.Send(viewer.Ws, new(WsMessage.MessageType.Request, "room.onstatechange", JToken.FromObject(new { room = new RoomPublic(room, viewer) })));
+                await _webSocket!.Send(viewer.Ws, new(WsMessage.MessageType.Event, "room.onstatechange", JToken.FromObject(new { room = new RoomPublic(room, viewer) })));
 
         return (true, "", room);
     }
 
-    public async Task<(bool success, bool isHit, Ship? sunkenShip, Room? room, string message)> Salvo(Player player, int x, int y)
+    public record SalvoResult(bool success = false, bool isHit = false, Ship? sunkenShip = null, Room? room = null, bool isGameOver = false, bool isOwnerWon = false, string message = "");
+    public async Task<SalvoResult> Salvo(Player player, int x, int y)
     {
         var room = GetJoinedRoom(player);
         if (room is null)
-            return (false, false, null, null, "You should be in room in order make moves");
+            return new(message: "You should be in room in order make moves");
         if (room.Owner != player && room.Opponent != player)
-            return (false, false, null, null, "You cannot do moves in room where you not playing");
+            return new(message: "You cannot do moves in room where you not playing");
         if (room.State != Room.States.Active)
-            return (false, false, null, null, "You can make moves only when room in active state");
+            return new(message: "You can make moves only when room in active state");
         if (room.IsOwnerTurn && room.Owner != player)
-            return (false, false, null, null, "It is your opponent`s turn");
+            return new(message: "It is your opponent`s turn");
         if (!room.IsOwnerTurn && room.Opponent != player)
-            return (false, false, null, null, "It is your opponent`s turn");
+            return new(message: "It is your opponent`s turn");
 
         var board = room.Owner == player ? room.OpponentBoard : room.Opponent == player ? room.OwnerBoard : null;
         if (board is null)
-            return (false, false, null, null, "Internal error");
+            return new(message: "Internal error");
 
         var res = board.Salvo(x, y);
         if (res.success)
         {
-            if(!res.isHit)
+            if (!res.isHit)
                 room.ToggleTurn();
 
             if (room.Owner != player)
-                await _webSocket!.Send(room.Owner.Ws, new(WsMessage.MessageType.Request, "game.onsalvo", JToken.FromObject(new
+                await _webSocket!.Send(room.Owner.Ws, new(WsMessage.MessageType.Event, "game.onsalvo", JToken.FromObject(new
                 {
                     x = x,
                     y = y,
@@ -267,7 +270,7 @@ public class RoomsService
                 })));
 
             if (room.Opponent is not null && room.Opponent != player)
-                await _webSocket!.Send(room.Opponent.Ws, new(WsMessage.MessageType.Request, "game.onsalvo", JToken.FromObject(new
+                await _webSocket!.Send(room.Opponent.Ws, new(WsMessage.MessageType.Event, "game.onsalvo", JToken.FromObject(new
                 {
                     x = x,
                     y = y,
@@ -277,7 +280,7 @@ public class RoomsService
                 })));
             foreach (var viewer in room.Viewers.ToArray())
                 if (viewer != player)
-                    await _webSocket!.Send(viewer.Ws, new(WsMessage.MessageType.Request, "game.onsalvo", JToken.FromObject(new
+                    await _webSocket!.Send(viewer.Ws, new(WsMessage.MessageType.Event, "game.onsalvo", JToken.FromObject(new
                     {
                         x = x,
                         y = y,
@@ -288,20 +291,22 @@ public class RoomsService
 
 
             if (board.Ships.All(s => s.IsDead))
-            {
-                room.End();
-
-                if (room.Owner != player)
-                    await _webSocket!.Send(room.Owner.Ws, new(WsMessage.MessageType.Request, "room.onstatechange", JToken.FromObject(new { room = new RoomPublic(room, room.Owner) })));
-                if (room.Opponent is not null && room.Opponent != player)
-                    await _webSocket!.Send(room.Opponent.Ws, new(WsMessage.MessageType.Request, "room.onstatechange", JToken.FromObject(new { room = new RoomPublic(room, room.Opponent) })));
-                foreach (var viewer in room.Viewers.ToArray())
-                    if (viewer != player)
-                        await _webSocket!.Send(viewer.Ws, new(WsMessage.MessageType.Request, "room.onstatechange", JToken.FromObject(new { room = new RoomPublic(room, viewer) })));
-            }
+                return new(res.success, res.isHit, res.sunkenShip, room, true, board.Player.Id != room.Owner.Id, res.message);
         }
 
-        return (res.success, res.isHit, res.sunkenShip, room, res.message);
+        return new(res.success, res.isHit, res.sunkenShip, room, false, false, res.message);
+    }
+
+    public async Task<(bool success, string message)> Surrender(Player player)
+    {
+        var room = GetJoinedRoom(player);
+        if (room is null)
+            return (false, "You should be in room in order to surrender");
+        if (room.Owner != player && room.Opponent != player)
+            return (false, "You cannot surrender in room where you not playing");
+        if (room.State != Room.States.Preparation)
+            return (false, "You can reset ships only when room in preparation state");
+        return (false, "Not implemented");
     }
 
     public Room? GetJoinedRoom(Player player)

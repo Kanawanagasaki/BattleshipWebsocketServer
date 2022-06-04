@@ -47,9 +47,9 @@ public class Board
 
             if (x1 < 0 || x2 >= Width || y1 < 0 || y2 >= Height) return false;
 
-            for (int iy = y1 - 1; iy <= y2 + 1; iy++)
+            for (int iy = y1; iy <= y2; iy++)
             {
-                for (int ix = x1 - 1; ix <= x2 + 1; ix++)
+                for (int ix = x1; ix <= x2; ix++)
                 {
                     if (iy < 0 || iy >= Height || ix < 0 || ix >= Width)
                         continue;

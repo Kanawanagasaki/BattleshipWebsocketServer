@@ -39,6 +39,7 @@ public class Room
     {
         if(Opponent == player)
         {
+            OwnerBoard.Reset();
             Opponent = null;
             OpponentBoard = null;
             State = States.Idle;
@@ -70,7 +71,7 @@ public class Room
 
     public void End()
     {
-        State = States.Idle;
+        State = States.End;
     }
 
     public void OnPlayerLeft(Player player)

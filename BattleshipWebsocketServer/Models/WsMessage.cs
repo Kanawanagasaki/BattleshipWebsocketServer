@@ -13,11 +13,20 @@ public class WsMessage
     public WsMessage(MessageType type, string? method, JToken? args = null)
         => (Type, Method, Args) = (type, method?.ToLower(), args);
 
-    public WsMessage Response(JToken? args = null, string? comment = null)
-        => new WsMessage(MessageType.Response, Method, args) { Comment = comment, Raw = Raw };
+    public WsMessage Response(object? args = null, string? comment = null)
+        => new WsMessage(MessageType.Response, Method, args is null ? null : JObject.FromObject(args)) { Comment = comment };
+
+    public WsMessage Response(bool success, string? message, object? args = null, string? comment = null)
+    {
+        var obj = args is null ? new JObject() : JObject.FromObject(args);
+        obj[nameof(success)] = success;
+        if (!string.IsNullOrWhiteSpace(message))
+            obj[nameof(message)] = message;
+        return new WsMessage(MessageType.Response, Method, obj) { Comment = comment };
+    }
 
     public enum MessageType
     {
-        Welcome, Request, Response, NotAuthorised, Error
+        Welcome, Request, Event, Response, NotAuthorised, Error
     }
 }

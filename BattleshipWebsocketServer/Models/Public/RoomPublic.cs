@@ -12,8 +12,8 @@ public class RoomPublic
     public RoomPublic(Room room, Player forPlayer)
     {
         id = room.Id;
-        owner = new(room.OwnerBoard, room.Owner != forPlayer);
-        opponent = room.OpponentBoard is null ? null : new(room.OpponentBoard, room.Opponent != forPlayer);
+        owner = new(room.OwnerBoard, room.Owner != forPlayer && room.State != Room.States.End);
+        opponent = room.OpponentBoard is null ? null : new(room.OpponentBoard, room.Opponent != forPlayer && room.State != Room.States.End);
         state = room.State.ToString().ToLower();
         isOwnerTurn = room.IsOwnerTurn;
         viewers = room.Viewers.Select(v => new PlayerPublic(v)).ToArray();
