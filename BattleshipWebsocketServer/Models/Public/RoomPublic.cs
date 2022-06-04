@@ -8,6 +8,7 @@ public class RoomPublic
     public string state;
     public bool isOwnerTurn;
     public PlayerPublic[] viewers;
+    public ChatMessagePublic[] messages;
 
     public RoomPublic(Room room, Player forPlayer)
     {
@@ -17,5 +18,6 @@ public class RoomPublic
         state = room.State.ToString().ToLower();
         isOwnerTurn = room.IsOwnerTurn;
         viewers = room.Viewers.Select(v => new PlayerPublic(v)).ToArray();
+        messages = room.Messages.Select(m => new ChatMessagePublic(m)).ToArray();
     }
 }

@@ -332,6 +332,30 @@ public class RoomsService
         return (true, "");
     }
 
+    public async Task<(bool success, string message, ChatMessage? chatMessage)> SendMessage(Player player, string message)
+    {
+        var room = GetJoinedRoom(player);
+        if (room is null) return (false, "You didn't join any room", null);
+        message = new string(message.Where(c => !char.IsControl(c)).ToArray());
+        if (message.Length == 0 || message.Length > 256)
+            return (false, "The message length must be between 1 and 256 characters, control characters will be removed", null);
+
+        var chatMessage = new ChatMessage(player, message);
+        room.AddMessage(chatMessage);
+
+        var data = JToken.FromObject(new { chatMessage = new ChatMessagePublic(chatMessage) });
+
+        if (room.Owner != player)
+            await _webSocket!.Send(room.Owner.Ws, new(WsMessage.MessageType.Event, "room.onmessage", data));
+        if (room.Opponent is not null && room.Opponent != player)
+            await _webSocket!.Send(room.Opponent.Ws, new(WsMessage.MessageType.Event, "room.onmessage", data));
+        foreach (var viewer in room.Viewers.ToArray())
+            if (viewer != player)
+                await _webSocket!.Send(viewer.Ws, new(WsMessage.MessageType.Event, "room.onmessage", data));
+
+        return (true, "", chatMessage);
+    }
+
     public Room? GetJoinedRoom(Player player)
         => _rooms.FirstOrDefault(r => r.Owner == player || r.Opponent == player || r.Viewers.Contains(player));
 

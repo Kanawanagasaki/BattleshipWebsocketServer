@@ -9,7 +9,7 @@ namespace BattleshipWebsocketServer.Services;
 
 public class WebSocketService
 {
-    private static string[] _events = new[] { "room.oncreate", "room.onkick", "room.ondestroy", "room.onjoin", "room.onstatechange", "room.onleave", "game.onsalvo" };
+    private static string[] _events = new[] { "room.oncreate", "room.onkick", "room.ondestroy", "room.onjoin", "room.onstatechange", "room.onleave", "game.onsalvo", "room.onmessage" };
 
     private Dictionary<string, Func<WebSocket, WsMessage, Task>> _requestMethods = new();
     private PlayersService _players;
@@ -30,6 +30,7 @@ public class WebSocketService
         _requestMethods.Add("room.join", RoomJoin);
         _requestMethods.Add("room.leave", RoomLeave);
         _requestMethods.Add("room.challenge", RoomChallenge);
+        _requestMethods.Add("room.sendmessage", RoomSendMessage);
         _requestMethods.Add("game.placeships", GamePlaceShips);
         _requestMethods.Add("game.resetships", GameResetShips);
         _requestMethods.Add("game.salvo", GameSalvo);
@@ -325,6 +326,38 @@ public class WebSocketService
         {
             var res = await _rooms.Surrender(player);
             await Send(ws, message.Response(res.success, res.message));
+        });
+
+    /// <summary>
+    /// If player is in the room, send chat message. args: { message:string }
+    /// </summary>
+    private async Task RoomSendMessage(WebSocket ws, WsMessage wsMessage)
+        => await CheckLogin(ws, wsMessage, async player =>
+        {
+            if (wsMessage.Args is null)
+            {
+                await Send(ws, wsMessage.Response(false, "\"args\" must not be null"));
+                return;
+            }
+            if (wsMessage.Args.Type != JTokenType.Object)
+            {
+                await Send(ws, wsMessage.Response(false, "\"args\" must be an object with \"message\" of type string"));
+                return;
+            }
+            var args = wsMessage.Args.Value<JObject>();
+            if (args is null || !args.ContainsKey("message"))
+            {
+                await Send(ws, wsMessage.Response(false, "\"args\" must contain \"message\" of type string"));
+                return;
+            }
+            var message = args?.Value<string>("message");
+            if (message is null)
+            {
+                await Send(ws, wsMessage.Response(false, "\"message\" was null"));
+                return;
+            }
+            var res = await _rooms.SendMessage(player, message);
+            await Send(ws, wsMessage.Response(res.success, res.message, new { chatMessage = res.chatMessage is null ? null : new ChatMessagePublic(res.chatMessage) }));
         });
 
     /// <summary>

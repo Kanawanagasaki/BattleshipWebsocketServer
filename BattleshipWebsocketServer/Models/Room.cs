@@ -18,6 +18,8 @@ public class Room
     private List<Player> _viewers = new();
     public IReadOnlyList<Player> Viewers => _viewers;
 
+    public List<ChatMessage> Messages = new();
+
     public Room(Player owner)
     {
         Id = ++ID_INC;
@@ -37,14 +39,14 @@ public class Room
 
     public void Leave(Player player)
     {
-        if(Opponent == player)
+        if (Opponent == player)
         {
             OwnerBoard.Reset();
             Opponent = null;
             OpponentBoard = null;
             State = States.Idle;
         }
-        if(_viewers.Contains(player))
+        if (_viewers.Contains(player))
         {
             _viewers.Remove(player);
         }
@@ -84,6 +86,16 @@ public class Room
         lock (_viewers)
             if (_viewers.Contains(player))
                 _viewers.Remove(player);
+    }
+
+    public void AddMessage(ChatMessage message)
+    {
+        lock (Messages)
+        {
+            Messages.Add(message);
+            if (Messages.Count > 20)
+                Messages.RemoveAt(0);
+        }
     }
 
     public void ToggleTurn()
