@@ -88,6 +88,9 @@ public class WebSocketService
         var res = _players.Register(ws, message.Args.Value<string>("nickname") ?? "");
         if (res.success && res.player is not null)
         {
+            if (message.Args.Value<JObject>()?.ContainsKey("color") ?? false)
+                res.player.Color = message.Args.Value<JToken>("color")?.ToString();
+
             await Send(ws, message.Response(res.success, res.message, new { player = new PlayerPublic(res.player) },
                 "Nice, you loggined in, now you can execute one of the following methods:\n" +
                 "room.list - will response to you with paginated rooms, use { page:integer } in order to get next pages, 0 is the first page\n" +

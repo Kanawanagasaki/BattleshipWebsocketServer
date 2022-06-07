@@ -10,6 +10,7 @@ public class Player
     
     public int Id { get; private set; }
     public string Nickname { get; private set; }
+    public string? Color { get; set; }
 
     public Player(WebSocket ws, string nickname)
     {
