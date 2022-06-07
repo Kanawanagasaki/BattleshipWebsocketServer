@@ -12,7 +12,7 @@
 	</ItemGroup>
 
 	<ItemGroup>
-		<InternalsVisibleTo Include="BattleshipWebsocketServer.Tests" />
+		<InternalsVisibleTo Include="BattleshipWebsocketServer.Test" />
 	</ItemGroup>
 
 </Project>

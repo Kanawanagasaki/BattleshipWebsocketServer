@@ -14,23 +14,17 @@ using System.Threading.Tasks;
 using Xunit;
 using Xunit.Abstractions;
 
-public class Auth
+public class Auth : Util
 {
-    private readonly ITestOutputHelper _output;
-
-    public Auth(ITestOutputHelper output)
-    {
-        _output = output;
-        Util.ResetApp();
-    }
+    public Auth(ITestOutputHelper output) : base(output) { }
 
     [Fact]
     public async Task Connect()
     {
-        var ws = await Util.GetWebSocket(false);
+        var ws = await GetWebSocket(false);
         Assert.Equal(WebSocketState.Open, ws.State);
 
-        var res = await Util.Receive(ws);
+        var res = await Receive(ws);
         Assert.Equal(WsMessage.MessageType.Welcome, res?.Type);
     }
 
@@ -40,21 +34,21 @@ public class Auth
         // Testing invalid messages
         var invalidMessages = new[]
         {
-            Util.CreateMessage(WsMessage.MessageType.Request, "login"),
-            Util.CreateMessage(WsMessage.MessageType.Request, "login", "test"),
-            Util.CreateMessage(WsMessage.MessageType.Request, "login", new { }),
-            Util.CreateMessage(WsMessage.MessageType.Request, "login", new { nickname = "Invalid nickname" }),
-            Util.CreateMessage(WsMessage.MessageType.Request, "login", new { nickname = "Привет!!" }),
-            Util.CreateMessage(WsMessage.MessageType.Request, "login", new { nickname = "1" }),
-            Util.CreateMessage(WsMessage.MessageType.Request, "login", new { nickname = "01234567890123456789012345678901234567890123456789" })
+            CreateMessage(WsMessage.MessageType.Request, "login"),
+            CreateMessage(WsMessage.MessageType.Request, "login", "test"),
+            CreateMessage(WsMessage.MessageType.Request, "login", new { }),
+            CreateMessage(WsMessage.MessageType.Request, "login", new { nickname = "Invalid nickname" }),
+            CreateMessage(WsMessage.MessageType.Request, "login", new { nickname = "Привет!!" }),
+            CreateMessage(WsMessage.MessageType.Request, "login", new { nickname = "1" }),
+            CreateMessage(WsMessage.MessageType.Request, "login", new { nickname = "01234567890123456789012345678901234567890123456789" })
         };
 
-        var ws = await Util.GetWebSocket();
+        var ws = await GetWebSocket();
 
         foreach (var invalidMessage in invalidMessages)
         {
-            await Util.SendMessage(ws, invalidMessage);
-            var data = await Util.Receive(ws);
+            await SendMessage(ws, invalidMessage);
+            var data = await Receive(ws);
 
             Assert.Equal(WsMessage.MessageType.Response, data?.Type);
             Assert.Equal("login", data?.Method);
@@ -67,9 +61,9 @@ public class Auth
         // Testing successfull login
         var nickname = "Test1";
 
-        var message = Util.CreateMessage(WsMessage.MessageType.Request, "login", new { nickname = nickname });
-        await Util.SendMessage(ws, message);
-        var res = await Util.Receive(ws);
+        var message = CreateMessage(WsMessage.MessageType.Request, "login", new { nickname = nickname });
+        await SendMessage(ws, message);
+        var res = await Receive(ws);
         Assert.NotNull(res);
         Assert.Equal(WsMessage.MessageType.Response, res?.Type);
         Assert.Equal("login", res?.Method);
@@ -86,8 +80,8 @@ public class Auth
         Assert.Equal(nickname, player?.Value<string>("nickname"));
 
         // Testing taken nickname
-        await Util.SendMessage(ws, message);
-        res = await Util.Receive(ws);
+        await SendMessage(ws, message);
+        res = await Receive(ws);
 
         Assert.Equal(WsMessage.MessageType.Response, res?.Type);
         Assert.Equal("login", res?.Method);
@@ -98,13 +92,13 @@ public class Auth
     }
 
     [Fact]
-    public async Task MultiuserLogin()
+    public async Task MultipleLogins()
     {
         var nickname = "Test6";
 
-        var message = Util.CreateMessage(WsMessage.MessageType.Request, "login", new { nickname = nickname });
-        var ws1 = await Util.SendMessage(message);
-        var res = await Util.Receive(ws1);
+        var message = CreateMessage(WsMessage.MessageType.Request, "login", new { nickname = nickname });
+        var ws1 = await SendMessage(message);
+        var res = await Receive(ws1);
         Assert.NotNull(res);
         Assert.Equal(WsMessage.MessageType.Response, res?.Type);
         Assert.Equal("login", res?.Method);
@@ -114,9 +108,9 @@ public class Auth
         Assert.True(obj?.Value<bool>("success"));
         Assert.True(obj?.ContainsKey("player"));
 
-        message = Util.CreateMessage(WsMessage.MessageType.Request, "login", new { nickname = nickname });
-        var ws2 = await Util.SendMessage(message);
-        res = await Util.Receive(ws2);
+        message = CreateMessage(WsMessage.MessageType.Request, "login", new { nickname = nickname });
+        var ws2 = await SendMessage(message);
+        res = await Receive(ws2);
         Assert.NotNull(res);
         Assert.Equal(WsMessage.MessageType.Response, res?.Type);
         Assert.Equal("login", res?.Method);
@@ -131,9 +125,9 @@ public class Auth
     public async Task Logout()
     {
         // Testing not loggined
-        var message = Util.CreateMessage(WsMessage.MessageType.Request, "logout");
-        var ws = await Util.SendMessage(message);
-        var res = await Util.Receive(ws);
+        var message = CreateMessage(WsMessage.MessageType.Request, "logout");
+        var ws = await SendMessage(message);
+        var res = await Receive(ws);
 
         Assert.NotNull(res);
 
@@ -147,9 +141,9 @@ public class Auth
         // Login to test
         var nickname = "Test2";
 
-        message = Util.CreateMessage(WsMessage.MessageType.Request, "login", new { nickname = nickname });
-        await Util.SendMessage(ws, message);
-        res = await Util.Receive(ws);
+        message = CreateMessage(WsMessage.MessageType.Request, "login", new { nickname = nickname });
+        await SendMessage(ws, message);
+        res = await Receive(ws);
 
         Assert.NotNull(res);
 
@@ -161,9 +155,9 @@ public class Auth
         Assert.True(obj?.Value<bool>("success"));
 
         // Logouting
-        message = Util.CreateMessage(WsMessage.MessageType.Request, "logout");
-        await Util.SendMessage(ws, message);
-        res = await Util.Receive(ws);
+        message = CreateMessage(WsMessage.MessageType.Request, "logout");
+        await SendMessage(ws, message);
+        res = await Receive(ws);
 
         Assert.NotNull(res);
 
@@ -175,9 +169,9 @@ public class Auth
         Assert.True(obj?.Value<bool>("success"));
 
         // Trying to logout again
-        message = Util.CreateMessage(WsMessage.MessageType.Request, "logout");
-        await Util.SendMessage(ws, message);
-        res = await Util.Receive(ws);
+        message = CreateMessage(WsMessage.MessageType.Request, "logout");
+        await SendMessage(ws, message);
+        res = await Receive(ws);
 
         Assert.NotNull(res);
 

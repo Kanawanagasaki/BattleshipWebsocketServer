@@ -12,24 +12,22 @@ using System.Linq;
 using System.Net.WebSockets;
 using System.Text;
 using System.Threading.Tasks;
+using Xunit.Abstractions;
 
-internal static class Util
+public class Util
 {
-    private static WebApplicationFactory<Program> _app;
-    private static WebSocketClient? _webSocketClient;
+    private WebApplicationFactory<Program> _app;
+    private WebSocketClient? _webSocketClient;
+    protected readonly ITestOutputHelper Output;
 
-    static Util()
-    {
-        ResetApp();
-    }
-
-    internal static void ResetApp()
+    public Util(ITestOutputHelper output)
     {
         _app = new WebApplicationFactory<Program>();
         _webSocketClient = _app.Server.CreateWebSocketClient();
+        Output = output;
     }
 
-    internal static async Task<WebSocket> LogIn(string nickname = "Util")
+    protected async Task<WebSocket> LogIn(string nickname = "Util")
     {
         var message = CreateMessage(WsMessage.MessageType.Request, "login", new { nickname = nickname });
         var ws = await SendMessage(message);
@@ -37,24 +35,24 @@ internal static class Util
         return ws;
     }
 
-    internal static async Task LogIn(WebSocket ws, string nickname = "Util")
+    protected async Task LogIn(WebSocket ws, string nickname = "Util")
     {
         var message = CreateMessage(WsMessage.MessageType.Request, "login", new { nickname = nickname });
         await SendMessage(ws, message);
         await Receive(ws);
     }
 
-    internal static async Task<WebSocket> SendMessage(string message, bool ignoreWelcome = true)
+    protected async Task<WebSocket> SendMessage(string message, bool ignoreWelcome = true)
     {
         var ws = await GetWebSocket(ignoreWelcome);
         await SendMessage(ws, message);
         return ws;
     }
 
-    internal static async Task SendMessage(WebSocket ws, string message)
+    protected async Task SendMessage(WebSocket ws, string message)
         => await ws.SendAsync(Encoding.UTF8.GetBytes(message), WebSocketMessageType.Text, true, CancellationToken.None);
 
-    internal static async Task<WsMessage?> Receive(WebSocket ws)
+    protected async Task<WsMessage?> Receive(WebSocket ws)
     {
         var ct = new CancellationTokenSource(2500);
 
@@ -76,14 +74,14 @@ internal static class Util
         return ret;
     }
 
-    internal static string CreateMessage(WsMessage.MessageType type, string? method, object? args = null)
+    protected string CreateMessage(WsMessage.MessageType type, string? method, object? args = null)
     {
         var message = new WsMessage(type, method, args is null ? null : JToken.FromObject(args));
         return JsonConvert.SerializeObject(message, new JsonSerializerSettings() { ContractResolver = new DefaultContractResolver { NamingStrategy = new CamelCaseNamingStrategy() } });
     }
 
 
-    internal static async Task<WebSocket> GetWebSocket(bool ignoreWelcome = true)
+    protected async Task<WebSocket> GetWebSocket(bool ignoreWelcome = true)
     {
         var ws = await _webSocketClient.ConnectAsync(new("ws://localhost:5111/ws"), CancellationToken.None);
         if (ignoreWelcome)
