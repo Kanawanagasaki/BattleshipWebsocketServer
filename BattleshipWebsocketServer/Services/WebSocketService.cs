@@ -9,7 +9,7 @@ namespace BattleshipWebsocketServer.Services;
 
 public class WebSocketService
 {
-    private static string[] _events = new[] { "room.oncreate", "room.onkick", "room.ondestroy", "room.onjoin", "room.onstatechange", "room.onleave", "game.onsalvo", "room.onmessage" };
+    private static string[] _events = new[] { "room.oncreate", "room.onkick", "room.ondestroy", "room.onjoin", "room.onstatechange", "room.onleave", "game.onshoot", "room.onmessage" };
 
     private Dictionary<string, Func<WebSocket, WsMessage, Task>> _requestMethods = new();
     private PlayersService _players;
@@ -33,7 +33,7 @@ public class WebSocketService
         _requestMethods.Add("room.sendmessage", RoomSendMessage);
         _requestMethods.Add("game.placeships", GamePlaceShips);
         _requestMethods.Add("game.resetships", GameResetShips);
-        _requestMethods.Add("game.salvo", GameSalvo);
+        _requestMethods.Add("game.shoot", GameShoot);
         _requestMethods.Add("game.surrender", GameSurrender);
         _requestMethods.Add("logout", Logout);
     }
@@ -238,7 +238,7 @@ public class WebSocketService
             if (res.success && res.room is not null)
                 await Send(ws, message.Response(res.success, res.message, new { room = new RoomPublic(res.room, player) },
                     "Now wait for room to notify you that it in active state. If player want to move ships then execute \"game.resetships\" method, it will make him not ready to play. " +
-                    "When both players is ready use \"game.salvo\" with { x:integer, y:integer } to shoot."));
+                    "When both players is ready use \"game.shoot\" with { x:integer, y:integer } to shoot."));
             else await Send(ws, message.Response(res.success, res.message));
         });
 
@@ -258,7 +258,7 @@ public class WebSocketService
     /// <param name="ws"></param>
     /// <param name="message"></param>
     /// <returns></returns>
-    private async Task GameSalvo(WebSocket ws, WsMessage message)
+    private async Task GameShoot(WebSocket ws, WsMessage message)
         => await CheckLogin(ws, message, async player =>
         {
             if (message.Args is null)
@@ -278,7 +278,7 @@ public class WebSocketService
                 return;
             }
 
-            var res = await _rooms.Salvo(player, x, y);
+            var res = await _rooms.Shoot(player, x, y);
             if (res.success && res.room is not null)
             {
                 await Send(ws, message.Response(res.success, res.message, new

@@ -234,8 +234,8 @@ public class RoomsService
         return (true, "", room);
     }
 
-    public record SalvoResult(bool success = false, bool isHit = false, Ship? sunkenShip = null, Room? room = null, bool isGameOver = false, bool isOwnerWon = false, string message = "");
-    public async Task<SalvoResult> Salvo(Player player, int x, int y)
+    public record ShotResult(bool success = false, bool isHit = false, Ship? sunkenShip = null, Room? room = null, bool isGameOver = false, bool isOwnerWon = false, string message = "");
+    public async Task<ShotResult> Shoot(Player player, int x, int y)
     {
         var room = GetJoinedRoom(player);
         if (room is null)
@@ -253,14 +253,14 @@ public class RoomsService
         if (board is null)
             return new(message: "Internal error");
 
-        var res = board.Salvo(x, y);
+        var res = board.Shoot(x, y);
         if (res.success)
         {
             if (!res.isHit)
                 room.ToggleTurn();
 
             if (room.Owner != player)
-                await _webSocket!.Send(room.Owner.Ws, new(WsMessage.MessageType.Event, "game.onsalvo", JToken.FromObject(new
+                await _webSocket!.Send(room.Owner.Ws, new(WsMessage.MessageType.Event, "game.onshoot", JToken.FromObject(new
                 {
                     x = x,
                     y = y,
@@ -270,7 +270,7 @@ public class RoomsService
                 })));
 
             if (room.Opponent is not null && room.Opponent != player)
-                await _webSocket!.Send(room.Opponent.Ws, new(WsMessage.MessageType.Event, "game.onsalvo", JToken.FromObject(new
+                await _webSocket!.Send(room.Opponent.Ws, new(WsMessage.MessageType.Event, "game.onshoot", JToken.FromObject(new
                 {
                     x = x,
                     y = y,
@@ -280,7 +280,7 @@ public class RoomsService
                 })));
             foreach (var viewer in room.Viewers.ToArray())
                 if (viewer != player)
-                    await _webSocket!.Send(viewer.Ws, new(WsMessage.MessageType.Event, "game.onsalvo", JToken.FromObject(new
+                    await _webSocket!.Send(viewer.Ws, new(WsMessage.MessageType.Event, "game.onshoot", JToken.FromObject(new
                     {
                         x = x,
                         y = y,

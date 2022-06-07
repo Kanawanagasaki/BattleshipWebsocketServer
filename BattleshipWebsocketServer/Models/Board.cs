@@ -95,7 +95,7 @@ public class Board
         IsReady = false;
     }
 
-    public (bool success, bool isHit, Ship? sunkenShip, string message) Salvo(int x, int y)
+    public (bool success, bool isHit, Ship? sunkenShip, string message) Shoot(int x, int y)
     {
         if (x < 0 || x >= Width || y < 0 || y >= Height)
             return (false, false, null, "Coordinates was outside the border");
