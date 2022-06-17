@@ -88,8 +88,31 @@ public class WebSocketService
         var res = _players.Register(ws, message.Args.Value<string>("nickname") ?? "");
         if (res.success && res.player is not null)
         {
+            Func<int> rand = () => Random.Shared.Next(60, 195);
+            Func<int, string> numToHex = (num) => num.ToString("X").PadLeft(2, '0');
+            Func<string> randomHex = () => "#" + numToHex(rand()) + numToHex(rand()) + numToHex(rand());
+            res.player.Color = randomHex();
+
             if (message.Args.Value<JObject>()?.ContainsKey("color") ?? false)
-                res.player.Color = message.Args.Value<JToken>("color")?.ToString();
+            {
+                var hex = message.Args.Value<JToken>("color")?.ToString() ?? "";
+                if (hex.StartsWith("#"))
+                {
+                    if (hex.Length == 4)
+                        hex = $"#{hex[1]}{hex[1]}{hex[2]}{hex[2]}{hex[3]}{hex[3]}";
+                    if (hex.Length == 7)
+                    {
+                        hex = hex.Substring(1);
+                        if (int.TryParse(hex, System.Globalization.NumberStyles.HexNumber, null, out int colorNum))
+                        {
+                            int r = Math.Clamp((colorNum >> 16) & 0xFF, 60, 195);
+                            int g = Math.Clamp((colorNum >> 8) & 0xFF, 60, 195);
+                            int b = Math.Clamp(colorNum & 0xFF, 60, 195);
+                            res.player.Color = "#" + numToHex(r) + numToHex(g) + numToHex(b);
+                        }
+                    }
+                }
+            }
 
             await Send(ws, message.Response(res.success, res.message, new { player = new PlayerPublic(res.player) },
                 "Nice, you loggined in, now you can execute one of the following methods:\n" +
