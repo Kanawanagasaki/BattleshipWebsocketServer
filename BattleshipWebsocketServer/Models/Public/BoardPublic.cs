@@ -7,7 +7,7 @@ public class BoardPublic
     public PlayerPublic player;
     public bool isReady;
 
-    public string comment = @"numbers in board are: 0 is empty cell, 1 is mark (you shoot and miss), 2 is ship, 3 is hit (ship hit but not dead), 4 is shipwreck (sunken ship)";
+    public string comment = @"numbers in board are: 0 is empty cell, 1 is mark (you shoot and miss), 2 is ship, 3 is hit (ship hit but not dead), 4 is shipwreck (sunken ship), 5+ is tagged ships";
 
     public BoardPublic(Board b, bool hide)
     {
@@ -21,6 +21,19 @@ public class BoardPublic
                     board[iy][ix] = (int)(b.Cells[ix, iy] == Board.BoardCell.Ship ? Board.BoardCell.Empty : b.Cells[ix, iy]);
                 else board[iy][ix] = (int)b.Cells[ix, iy];
             }
+        }
+
+        foreach(var ship in b.Ships)
+        {
+            if (hide && !ship.IsDead) continue;
+            if (ship.Tag < 5) continue;
+
+            int ex = ship.X + (ship.IsVertical ? 0 : ship.Size - 1);
+            int ey = ship.Y + (ship.IsVertical ? ship.Size - 1 : 0);
+
+            for(int ix = ship.X; ix <= ex; ix++)
+                for(int iy = ship.Y; iy <= ey; iy++)
+                    board[iy][ix] = ship.Tag;
         }
 
         if(hide)

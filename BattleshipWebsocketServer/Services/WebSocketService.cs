@@ -9,7 +9,7 @@ namespace BattleshipWebsocketServer.Services;
 
 public class WebSocketService
 {
-    private static string[] _events = new[] { "room.oncreate", "room.onkick", "room.ondestroy", "room.onjoin", "room.onstatechange", "room.onleave", "game.onshoot", "room.onmessage" };
+    private static string[] _events = new[] { "room.oncreate", "room.onkick", "room.ondestroy", "room.onjoin", "room.onstatechange", "room.onleave", "game.onshoot", "game.ongameover", "room.onmessage" };
 
     private Dictionary<string, Func<WebSocket, WsMessage, Task>> _requestMethods = new();
     private PlayersService _players;
@@ -143,7 +143,7 @@ public class WebSocketService
             }
 
             int skip = page * 20;
-            var rooms = _rooms.Rooms.Skip(skip).Select(r => new RoomPublic(r, player));
+            var rooms = _rooms.Rooms.Skip(skip).Take(20).Select(r => new RoomPublic(r, player));
             int totalPages = (int)Math.Ceiling(_rooms.Rooms.Count / 20d);
 
             await Send(ws, message.Response(true, null, new { rooms = rooms, page = page, totalPages = totalPages },
@@ -313,7 +313,8 @@ public class WebSocketService
                     y = y,
                     isHit = res.isHit,
                     sunkenShip = res.sunkenShip is null ? null : new ShipPublic(res.sunkenShip),
-                    room = new RoomPublic(res.room, player)
+                    room = new RoomPublic(res.room, player),
+                    shooter = new PlayerPublic(player)
                 }));
 
                 if (res.isGameOver)

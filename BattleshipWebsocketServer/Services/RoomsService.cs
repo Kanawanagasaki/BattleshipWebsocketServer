@@ -266,7 +266,8 @@ public class RoomsService
                     y = y,
                     isHit = res.isHit,
                     sunkenShip = res.sunkenShip,
-                    room = new RoomPublic(room, room.Owner)
+                    room = new RoomPublic(room, room.Owner),
+                    shooter = new PlayerPublic(player)
                 })));
 
             if (room.Opponent is not null && room.Opponent != player)
@@ -276,7 +277,8 @@ public class RoomsService
                     y = y,
                     isHit = res.isHit,
                     sunkenShip = res.sunkenShip,
-                    room = new RoomPublic(room, room.Opponent)
+                    room = new RoomPublic(room, room.Opponent),
+                    shooter = new PlayerPublic(player)
                 })));
             foreach (var viewer in room.Viewers.ToArray())
                 if (viewer != player)
@@ -286,7 +288,8 @@ public class RoomsService
                         y = y,
                         isHit = res.isHit,
                         sunkenShip = res.sunkenShip,
-                        room = new RoomPublic(room, viewer)
+                        room = new RoomPublic(room, viewer),
+                        shooter = new PlayerPublic(player)
                     })));
 
 
